@@ -21,8 +21,6 @@ struct instruction
 	characters::character c;
 };
 
-// character* getCharacters(std::string str);
-// character charToVK(char c);
 
 class Typing
 {
@@ -32,9 +30,11 @@ private:
 	int instructionsArrSize;
 
 	int terminatorOffset = (unsigned int)-1 >> 1;
-	float sizeMult = 2;
-	unsigned int maxChar = 30;
-	unsigned int delayBetweenDirKeys = 0;
+
+	//cannot be less than 1
+	float sizeMult = 1.25;
+	unsigned int maxChar;
+	unsigned int delayBetweenDirKeys = 3;
 	unsigned int delayBetweenChars = 3;
 	unsigned int delayBetweenChunks = 5;
 
@@ -63,7 +63,6 @@ public:
 	void right();
 	void ctrlDir(bool right);
 	void sendchar(characters::character c);
-	//void sendWord(bool doCtrl);
 	void sendWord();
 	void generateInstructions();
 	void delForward();
