@@ -145,6 +145,11 @@ void Typing::ctrlDir(bool doRight)
 
 void Typing::sendchar(characters::character c)
 {
+	// if (c.c > 0xFE)
+	// {
+	// 	 std::cout << "invalid vk" << c.c << std::endl;
+	// 	 return;
+	// }
 	if (c.shift)
 	{
 		//set keys
@@ -174,28 +179,49 @@ void Typing::sendchar(characters::character c)
 void Typing::sendWord()
 {
 
+	//*
 	for (int i = 0; i < this->instructionsArrSize; i++)
 	{
+		
 		for (int j = 0; this->instructionsArr[i][j].offset != this->terminatorOffset; j++)
 		{
-			while (this->instructionsArr[i][j].offset < 0)
+			int offset = instructionsArr[i][j].offset;
+			int del = instructionsArr[i][j].del;
+			while (offset < 0)
 			{
 				left();
-				this->instructionsArr[i][j].offset++;
+				offset++;
 				Sleep(this->delayBetweenDirKeys);
 			}
-			while (instructionsArr[i][j].offset > 0)
+			while (offset > 0)
 			{
 				right();
-				this->instructionsArr[i][j].offset--;
+				offset--;
 				Sleep(this->delayBetweenDirKeys);
 			}
+			if (this->doGarbage)
+			{
+				while (del < 0)
+				{
+					delback();
+					del++;
+					Sleep(this->delayBetweenDirKeys);
+				}
+				while (del > 0)
+				{
+					delForward();
+					del--;
+					Sleep(this->delayBetweenDirKeys);
+				}
+			}
+			
 			Sleep(this->delayBetweenChars);
+			// std::cout << " |" << instructionsArr[i][j].c.ch << instructionsArr[i][j].c.c << "| ";
 			sendchar(this->instructionsArr[i][j].c);
 				
 		}
 		Sleep(this->delayBetweenChunks);
-	}
+	} // */
 }
 
 void Typing::generateInstructions()
@@ -266,7 +292,7 @@ void Typing::generateInstructions()
 		for (int i = 0; i < this->instructionsArrSize; i++)
 		{
 			int amount = this->maxChar - amountOfGarbage[i];
-			wordList[i] = std::string(this->maxChar, 255);
+			wordList[i] = std::string(this->maxChar, 1);
 			std::string str = this->word.substr(startIndex, amount);
 			// assign characters from this->word to wordList[i]
 			for (int j = 0; j < amount; j++)
@@ -392,7 +418,7 @@ void Typing::generateInstructions()
 		int currentIndex = 0;
 		int targetIndex = 0;
 		int offset = 0;
-		characters charList = characters(wordList[iteration]);
+		characters charList(wordList[iteration]);
 		for (int i = 0; i < wordList[iteration].size(); i++)
 		{
 			targetIndex = 0;
@@ -418,15 +444,21 @@ void Typing::generateInstructions()
 			//save offset into instruction array
 			this->instructionsArr[iteration][i].offset = offset;
 			this->instructionsArr[iteration][i].del = 0;
+			if (charList[i].ch == 1)
+			{
+				int owo = rand() % this->garbageSize;
+				char uwu = nonsense[owo];
+				charList.getCharacters()[i] = charList.charToVK(uwu);
+			}
 			this->instructionsArr[iteration][i].c = charList[i];
+			
+			
 		}
-
 		//move cursor to last character sent
 		this->instructionsArr[iteration][wordList[iteration].size()].offset = wordList[iteration].size() - currentIndex;
-		this->instructionsArr[iteration][wordList[iteration].size()].del = 0;
+		this->instructionsArr[iteration][wordList[iteration].size()].del = -amountOfGarbage[iteration];
 		this->instructionsArr[iteration][wordList[iteration].size()].ctrl = false;
-
-		
+		this->instructionsArr[iteration][wordList[iteration].size()].c = characters::character{0,0x0A, 0};
 	}
 	delete[] finalIndexes;
 	delete[] finalIndex;
