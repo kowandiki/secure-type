@@ -39,6 +39,7 @@ private:
 	unsigned int delayBetweenChunks = 5;
 
 	bool doGarbage;
+	bool doClipboard = true;
 
 	INPUT keyboardInput;
 	INPUT keyboardModifier;
@@ -67,6 +68,9 @@ public:
 	void generateInstructions();
 	void delForward();
 	void delback();
+
+	void setClipboard(const char* str);
+	void sendClipboard();
 };
 
 /*

@@ -143,6 +143,58 @@ void Typing::ctrlDir(bool doRight)
 	SendInput(1, &keyboardModifier, sizeof(INPUT));
 }
 
+void Typing::setClipboard(const char* str)
+{
+	//open clipboard and set value to c
+	//close clipboard
+
+	if (!OpenClipboard(nullptr))
+	{
+		std::cout << "nullptr" << std::endl;
+		return;
+	}
+
+	//empty clipboard
+	EmptyClipboard();
+
+	//allocate space for str
+	auto alloc = GlobalAlloc(GMEM_FIXED, strlen(str) + 1);
+	memcpy(alloc, str, strlen(str));
+
+	//set str in clipboard
+	SetClipboardData(CF_TEXT, alloc);
+
+	//close clipboard
+	CloseClipboard();
+	return;
+}
+
+void Typing::sendClipboard()
+{
+	//press ctrl+v
+	keyboardModifier.ki.wVk = VK_CONTROL;
+	keyboardModifier.ki.wScan = MapVirtualKey(VK_CONTROL, MAPVK_VK_TO_VSC);
+
+	//ctrl down
+	keyboardModifier.ki.dwFlags = 0;
+	SendInput(1, &keyboardModifier, sizeof(INPUT));
+
+	//v down
+
+	keyboardInput.ki.wVk = 'V';
+	keyboardInput.ki.wScan = MapVirtualKey('V', MAPVK_VK_TO_VSC);
+	keyboardInput.ki.dwFlags = 0; // 0 = key down, KEYEVENTF_KEYUP = key up
+	SendInput(1, &keyboardInput, sizeof(INPUT));
+
+	//v up
+	keyboardInput.ki.dwFlags = KEYEVENTF_KEYUP;
+	SendInput(1, &keyboardInput, sizeof(INPUT));
+
+	//ctrl up
+	keyboardModifier.ki.dwFlags = KEYEVENTF_KEYUP;
+	SendInput(1, &keyboardModifier, sizeof(INPUT));
+}
+
 void Typing::sendchar(characters::character c)
 {
 	// if (c.c > 0xFE)
@@ -217,8 +269,22 @@ void Typing::sendWord()
 			
 			Sleep(this->delayBetweenChars);
 			// std::cout << " |" << instructionsArr[i][j].c.ch << instructionsArr[i][j].c.c << "| ";
+			//50/50 on whether to use clipboard ot send next char or sendchar()
+
+			if (this->doClipboard)
+			{
+				if (rand() % 1)
+				{
+					sendchar(this->instructionsArr[i][j].c);
+				}
+				else
+				{
+					setClipboard(new const char[2]{ instructionsArr[i][j].c.ch, '\0' });
+					sendClipboard();
+				}	
+				continue;
+			}
 			sendchar(this->instructionsArr[i][j].c);
-				
 		}
 		Sleep(this->delayBetweenChunks);
 	} // */
