@@ -6,19 +6,13 @@
 
 #include <string.h>
 
-struct character
-{
-	bool shift;
-	unsigned int c;
-	char ch;
-};
-
 struct instruction
 {
 	int offset;
 	int del;
 	bool ctrl;
 	characters::character c;
+	HWND handle;
 };
 
 
@@ -38,8 +32,13 @@ private:
 	unsigned int delayBetweenChars = 3;
 	unsigned int delayBetweenChunks = 5;
 
+	float focusMod = 0.5;
+
 	bool doGarbage;
-	bool doClipboard = true;
+	bool doClipboard = false;
+	bool doSwitchFocus = true;
+
+	HWND handle;
 
 	INPUT keyboardInput;
 	INPUT keyboardModifier;
@@ -71,6 +70,8 @@ public:
 
 	void setClipboard(const char* str);
 	void sendClipboard();
+
+	void setHandle(HWND handle) { this->handle = handle; }
 };
 
 /*

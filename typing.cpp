@@ -239,6 +239,17 @@ void Typing::sendWord()
 		{
 			int offset = instructionsArr[i][j].offset;
 			int del = instructionsArr[i][j].del;
+
+			// SetFocus(instructionsArr[i][j].handle);
+			if (instructionsArr[i][j].handle == NULL)
+			{
+				SetForegroundWindow(GetDesktopWindow());
+			}
+			else
+			{
+				SetForegroundWindow(this->handle);
+			}
+			
 			while (offset < 0)
 			{
 				left();
@@ -268,7 +279,7 @@ void Typing::sendWord()
 			}
 			
 			Sleep(this->delayBetweenChars);
-			// std::cout << " |" << instructionsArr[i][j].c.ch << instructionsArr[i][j].c.c << "| ";
+
 			//50/50 on whether to use clipboard ot send next char or sendchar()
 
 			if (this->doClipboard)
@@ -411,7 +422,6 @@ void Typing::generateInstructions()
 		}
 
 	}
-	
 
 	this->instructionsArr = new instruction* [this->instructionsArrSize];
 
@@ -472,12 +482,28 @@ void Typing::generateInstructions()
 			finalIndex[finalIndexes[i]] = i;
 		}
 
+		int nullFocusCount = (wordList[iteration].size() * this->focusMod) * doSwitchFocus;
+		int currentInstSize = wordList[iteration].size() + nullFocusCount;
+		
+
 		//create array of instructions
-		this->instructionsArr[iteration] = new instruction[wordList[iteration].size() + 2];
+		this->instructionsArr[iteration] = new instruction[currentInstSize + 2];
 		//set terminator
-		this->instructionsArr[iteration][wordList[iteration].size() + 1].del = this->terminatorOffset;
-		this->instructionsArr[iteration][wordList[iteration].size() + 1].offset = this->terminatorOffset;
-		this->instructionsArr[iteration][wordList[iteration].size() + 1].ctrl = false;
+		this->instructionsArr[iteration][currentInstSize + 1].del = this->terminatorOffset;
+		this->instructionsArr[iteration][currentInstSize + 1].offset = this->terminatorOffset;
+		this->instructionsArr[iteration][currentInstSize + 1].ctrl = false;
+		this->instructionsArr[iteration][currentInstSize + 1].handle = this->handle;
+
+		//set stuff for null focus swap
+		for (int i = 0; i < nullFocusCount;)
+		{
+			int num = rand() % currentInstSize;
+			if (instructionsArr[iteration][num].handle != (HWND)-1)
+			{
+				instructionsArr[iteration][num].handle = (HWND)-1;
+				i++;
+			}
+		}
 
 
 		//set valid instructions
@@ -485,15 +511,38 @@ void Typing::generateInstructions()
 		int targetIndex = 0;
 		int offset = 0;
 		characters charList(wordList[iteration]);
-		for (int i = 0; i < wordList[iteration].size(); i++)
+		int charListLocation;
+		for (int i = 0, charListLocation = 0; i < currentInstSize; i++)
 		{
+
+			if (instructionsArr[iteration][i].handle == (HWND)-1)
+			{
+				//generate random instructions to throw off keyloggers
+				this->instructionsArr[iteration][i].c = charList.charToVK(nonsense[rand() % this->garbageSize]);
+				
+				if (rand() % 1)
+				{
+					//go left
+					this->instructionsArr[iteration][i].offset = (rand() % (i - currentIndex + 1)) * -1;
+				}
+				else
+				{
+					//go right
+					this->instructionsArr[iteration][i].offset = rand() % (i - currentIndex + 1);
+				}
+
+				this->instructionsArr[iteration][i].handle = NULL;
+				this->instructionsArr[iteration][i].del = 0;
+				this->instructionsArr[iteration][i].ctrl = 0;
+				continue;
+			}
 			targetIndex = 0;
 			//if finalIndex[x] < finalIndex[i]
 			//targetIndex++
 			// if not, do nothing
-			for (int x = i; x >= 0; x--)
+			for (int x = charListLocation; x >= 0; x--)
 			{
-				if (finalIndex[x] < finalIndex[i])
+				if (finalIndex[x] < finalIndex[charListLocation])
 				{
 					targetIndex++;
 				}
@@ -510,21 +559,25 @@ void Typing::generateInstructions()
 			//save offset into instruction array
 			this->instructionsArr[iteration][i].offset = offset;
 			this->instructionsArr[iteration][i].del = 0;
-			if (charList[i].ch == 1)
+			if (charList[charListLocation].ch == 1)
 			{
 				int owo = rand() % this->garbageSize;
 				char uwu = nonsense[owo];
-				charList.getCharacters()[i] = charList.charToVK(uwu);
+				charList.getCharacters()[charListLocation] = charList.charToVK(uwu);
 			}
-			this->instructionsArr[iteration][i].c = charList[i];
-			
-			
+			this->instructionsArr[iteration][i].c = charList[charListLocation];
+			this->instructionsArr[iteration][i].handle = this->handle;
+			this->instructionsArr[iteration][i].ctrl = 0;
+
+			charListLocation++;
+
 		}
 		//move cursor to last character sent
-		this->instructionsArr[iteration][wordList[iteration].size()].offset = wordList[iteration].size() - currentIndex;
-		this->instructionsArr[iteration][wordList[iteration].size()].del = -amountOfGarbage[iteration];
-		this->instructionsArr[iteration][wordList[iteration].size()].ctrl = false;
-		this->instructionsArr[iteration][wordList[iteration].size()].c = characters::character{0,0x0A, 0};
+		this->instructionsArr[iteration][currentInstSize].offset = wordList[iteration].size() - currentIndex;
+		this->instructionsArr[iteration][currentInstSize].del = -amountOfGarbage[iteration];
+		this->instructionsArr[iteration][currentInstSize].ctrl = false;
+		this->instructionsArr[iteration][currentInstSize].c = characters::character{0,0x0A, 0};
+		this->instructionsArr[iteration][currentInstSize].handle = this->handle;
 	}
 	delete[] finalIndexes;
 	delete[] finalIndex;
