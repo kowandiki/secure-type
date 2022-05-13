@@ -3,6 +3,18 @@
 
 Typing::Typing()
 {
+	this->maxChar = 10;
+	this->program = -1;
+	this->sizeMult = 1.5;
+	this->focusMod = 0.5;
+	this->delayBetweenDirKeys = 0;
+	this->delayBetweenChars = 3;
+	this->delayBetweenChunks = 3;
+	this->doGarbage = true;
+	this->doClipboard = true;
+	this->doSwitchFocus = false;
+
+
 	this->instructionsArr = nullptr;
 	this->instructionsArrSize = 0;
 
@@ -27,13 +39,37 @@ Typing::Typing()
 	this->garbage = garbage.getCharacters();
 }
 
-Typing::Typing(unsigned int maxChar, int program, bool doGarbage, std::string word)
+Typing::Typing(
+	unsigned int maxChar,
+	int program,
+	float sizeMult,
+	float focusMod,
+	unsigned int delayBetweenDirKeys,
+	unsigned int delayBetweenChars,
+	unsigned int delayBetweenChunks,
+	bool doGarbage,
+	bool doClipboard,
+	bool doSwitchFocus,
+	bool doCtrl,
+	std::string word
+)
 {
 	srand((unsigned)time(0));
-	this->maxChar = maxChar;
-	this->word = word;
+
+	this->maxChar = maxChar < 1 ? 1 : maxChar;
 	this->program = program;
+	this->sizeMult = sizeMult < 1 ? 1 : sizeMult;
+	this->focusMod = focusMod < 0 ? 0 : focusMod;
+	this->delayBetweenDirKeys = delayBetweenDirKeys;
+	this->delayBetweenChars = delayBetweenChars;
+	this->delayBetweenChunks = delayBetweenChunks;
 	this->doGarbage = doGarbage;
+	this->doClipboard = doClipboard;
+	this->doSwitchFocus = doSwitchFocus;
+	this->doCtrl = doCtrl;
+
+	this->word = word;
+
 	this->instructionsArr = nullptr;
 	this->instructionsArrSize = 0;
 
@@ -81,6 +117,12 @@ Typing::Typing(unsigned int maxChar, int program, bool doGarbage, std::string wo
 		xSpecial2 = "";
 		break;
 	}
+}
+
+void Typing::setWord(std::string word)
+{
+	this->word = word;
+	generateInstructions();
 }
 
 void Typing::left()
@@ -143,7 +185,7 @@ void Typing::ctrlDir(bool doRight)
 	SendInput(1, &keyboardModifier, sizeof(INPUT));
 }
 
-void Typing::setClipboard(const char* str)
+bool Typing::setClipboard(const char* str)
 {
 	//open clipboard and set value to c
 	//close clipboard
@@ -151,7 +193,7 @@ void Typing::setClipboard(const char* str)
 	if (!OpenClipboard(nullptr))
 	{
 		std::cout << "nullptr" << std::endl;
-		return;
+		return false;
 	}
 
 	//empty clipboard
@@ -166,7 +208,7 @@ void Typing::setClipboard(const char* str)
 
 	//close clipboard
 	CloseClipboard();
-	return;
+	return true;
 }
 
 void Typing::sendClipboard()
@@ -231,6 +273,15 @@ void Typing::sendchar(characters::character c)
 void Typing::sendWord()
 {
 
+	//get handle
+	this->handle = GetForegroundWindow();
+
+	//block user input (only works when run as admin)
+	BlockInput(true);
+
+	//release all keys
+	releaseAllKeys();
+
 	//*
 	for (int i = 0; i < this->instructionsArrSize; i++)
 	{
@@ -249,6 +300,7 @@ void Typing::sendWord()
 			{
 				SetForegroundWindow(this->handle);
 			}
+			
 			
 			while (offset < 0)
 			{
@@ -290,15 +342,22 @@ void Typing::sendWord()
 				}
 				else
 				{
-					setClipboard(new const char[2]{ instructionsArr[i][j].c.ch, '\0' });
-					sendClipboard();
+					if (setClipboard(new const char[2]{ instructionsArr[i][j].c.ch, '\0' }))
+						sendClipboard();
+					else
+						sendchar(this->instructionsArr[i][j].c);
 				}	
 				continue;
 			}
 			sendchar(this->instructionsArr[i][j].c);
 		}
 		Sleep(this->delayBetweenChunks);
+		//make sure its always tabbed in at the end of each chunk
+		SetForegroundWindow(this->handle);
 	} // */
+
+	//unblock user input
+	BlockInput(false);
 }
 
 void Typing::generateInstructions()
@@ -563,10 +622,12 @@ void Typing::generateInstructions()
 			{
 				int owo = rand() % this->garbageSize;
 				char uwu = nonsense[owo];
-				charList.getCharacters()[charListLocation] = charList.charToVK(uwu);
+				charList[charListLocation] = charList.charToVK(uwu);
 			}
 			this->instructionsArr[iteration][i].c = charList[charListLocation];
-			this->instructionsArr[iteration][i].handle = this->handle;
+			// this->instructionsArr[iteration][i].handle = this->handle;
+			// make sendword() handle getting the target window
+			this->instructionsArr[iteration][i].handle = (HWND)1;
 			this->instructionsArr[iteration][i].ctrl = 0;
 
 			charListLocation++;
@@ -577,9 +638,41 @@ void Typing::generateInstructions()
 		this->instructionsArr[iteration][currentInstSize].del = -amountOfGarbage[iteration];
 		this->instructionsArr[iteration][currentInstSize].ctrl = false;
 		this->instructionsArr[iteration][currentInstSize].c = characters::character{0,0x0A, 0};
-		this->instructionsArr[iteration][currentInstSize].handle = this->handle;
+		this->instructionsArr[iteration][currentInstSize].handle = (HWND)1;
+		//this->instructionsArr[iteration][currentInstSize].handle = this->handle;
 	}
 	delete[] finalIndexes;
 	delete[] finalIndex;
 }
 
+
+void releaseAllKeys()
+{
+	//toggle caps lock if its on
+	if (GetKeyState(VK_CAPITAL))
+	{
+		INPUT keyboardInput;
+
+		keyboardInput.type = INPUT_KEYBOARD;
+		keyboardInput.ki.time = 0;
+		keyboardInput.ki.dwExtraInfo = 0;
+
+		keyboardInput.ki.wVk = VK_CAPITAL;
+		keyboardInput.ki.wScan = MapVirtualKey(VK_CAPITAL, MAPVK_VK_TO_VSC);
+		keyboardInput.ki.dwFlags = 0; // 0 = key down, KEYEVENTF_KEYUP = key up
+		SendInput(1, &keyboardInput, sizeof(INPUT));
+		keyboardInput.ki.dwFlags = KEYEVENTF_KEYUP;
+		SendInput(1, &keyboardInput, sizeof(INPUT));
+	}
+	//use setKeyboardState to release everything else
+
+	//TODO: Fix memory leak
+	//I'm pretty sure this just doesn't work
+	LPBYTE arr = new BYTE[256];
+	for (int i = 0; i < 256; i++)
+	{
+		arr[i] = 0;
+	}
+
+	SetKeyboardState(arr);
+}
